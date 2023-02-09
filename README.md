@@ -12,6 +12,9 @@ pip install scipy
 ### Install PyGEM
 Folow the instalation procedure given in:
 https://github.com/mathLab/PyGeM/blob/master/README.md#dependencies-and-installation
+### Install moobench
+Clone/download repository and folow instalation procedure given in:
+https://github.com/pprebeg/moobench
 ### Prepare d3v-gsd
 Download or clone d3v: 
 https://github.com/linaetal-fsb/d3v.git  
