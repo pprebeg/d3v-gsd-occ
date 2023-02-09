@@ -64,14 +64,35 @@ class HullmodCommand(Command):
             print('Unknown exception occurred during signals connection')
 
         self.menuOCCForm = QMenu("&OCC Form")
-        self.hfcom.menuMain.insertMenu(self.hfcom.menuHullGenForm.menuAction() ,self.menuOCCForm)
+        self.hfcom.menuMain.insertMenu(self.hfcom.menuHullGenForm.menuAction(), self.menuOCCForm)
 
         menuHullgenModify = self.menuOCCForm.addAction("&Modify form")
         menuHullgenModify.triggered.connect(self.onModifyHullgenForm)
 
+        menuHullsections = self.menuOCCForm.addAction("&Cross section curves")
+        menuHullsections.triggered.connect(self.onSectionCurves)
+
+        menuHullextrudeSide = self.menuOCCForm.addAction("&Extrude hull side shell")
+        menuHullextrudeSide.triggered.connect(self.onExtrudeSide)
+
+        menuHullcloseCover = self.menuOCCForm.addAction("&Close cover")
+        menuHullcloseCover.triggered.connect(self.onCloseCover)
+
     def onModifyHullgenForm(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
             self.hfcom.active_hull_form.modify_form()
+
+    def onSectionCurves(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.cross_section_curves()
+
+    def onExtrudeSide(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.extrude_side_shell()
+
+    def onCloseCover(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.close_cover()
 
     @Slot()
     def onVisibleGeometryChanged(self, visible:List[Geometry], loaded:List[Geometry], selected:List[Geometry]):
