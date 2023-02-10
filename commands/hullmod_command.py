@@ -1,14 +1,14 @@
 import os.path
 
-from PySide6.QtWidgets import QApplication, QMenu, QFormLayout,QWidget,QHeaderView,QSlider,QLineEdit
-from PySide6.QtWidgets import QDialog, QPushButton,QGridLayout,QVBoxLayout,QHBoxLayout,QTableView,QTextEdit,QLabel
-from PySide6.QtCore import Slot,Qt,QMetaObject,QCoreApplication
+from PySide6.QtWidgets import QApplication, QMenu, QFormLayout, QWidget, QHeaderView, QSlider, QLineEdit
+from PySide6.QtWidgets import QDialog, QPushButton, QGridLayout, QVBoxLayout, QHBoxLayout, QTableView, QTextEdit, QLabel
+from PySide6.QtCore import Slot, Qt, QMetaObject, QCoreApplication
 from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect
 from PySide6.QtGui import QColor, QPainter
-#from PySide6.QtCharts import QtCharts
-from PySide6.QtWidgets import QFileDialog,QDialogButtonBox,QProgressDialog,QMenuBar
-from PySide6.QtCore import SIGNAL,SLOT
-from typing import Dict,List
+# from PySide6.QtCharts import QtCharts
+from PySide6.QtWidgets import QFileDialog, QDialogButtonBox, QProgressDialog, QMenuBar
+from PySide6.QtCore import SIGNAL, SLOT
+from typing import Dict, List
 from uuid import uuid4
 
 import hullformdir.hullgeneratorform
@@ -35,22 +35,24 @@ except BaseException as error:
 except:
     print('Unknown exception occurred during signals connection')
 
-def get_menu_by_name(mb:QMenuBar,name:str)->QMenu:
+
+def get_menu_by_name(mb: QMenuBar, name: str) -> QMenu:
     actions = mb.actions()
     for action in actions:
         if action.menu():
-            if action.text()== name:
+            if action.text() == name:
                 return action
     return None
+
 
 class HullmodCommand(Command):
     def __init__(self):
         super().__init__()
         self._app = QApplication.instance()
         self.app.registerIOHandler(HullmodImporter())
-        self.hfcom:HullmodCommand= None
+        self.hfcom: HullmodCommand = None
         for com in self.app.commands:
-            if isinstance(com,HullFormCommand):
+            if isinstance(com, HullFormCommand):
                 self.hfcom = com
                 break
         try:
@@ -75,6 +77,9 @@ class HullmodCommand(Command):
         menuHullextrudeSide = self.menuOCCForm.addAction("&Extrude hull side shell")
         menuHullextrudeSide.triggered.connect(self.onExtrudeSide)
 
+        menuHullcloseTransom = self.menuOCCForm.addAction("&Close transom")
+        menuHullcloseTransom.triggered.connect(self.onCloseTransom)
+
         menuHullcloseCover = self.menuOCCForm.addAction("&Close cover")
         menuHullcloseCover.triggered.connect(self.onCloseCover)
 
@@ -90,12 +95,16 @@ class HullmodCommand(Command):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
             self.hfcom.active_hull_form.extrude_side_shell()
 
+    def onCloseTransom(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.close_transom()
+
     def onCloseCover(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
             self.hfcom.active_hull_form.close_cover()
 
     @Slot()
-    def onVisibleGeometryChanged(self, visible:List[Geometry], loaded:List[Geometry], selected:List[Geometry]):
+    def onVisibleGeometryChanged(self, visible: List[Geometry], loaded: List[Geometry], selected: List[Geometry]):
         for g in visible:
             pass
 
@@ -104,54 +113,53 @@ class HullmodCommand(Command):
         pass
 
     @Slot()
-    def onGeometryCreated(self, geometries:List[Geometry]):
+    def onGeometryCreated(self, geometries: List[Geometry]):
         pass
 
-
     @Slot()
-    def onGeometryRemoved(self, geometries:List[Geometry]):
+    def onGeometryRemoved(self, geometries: List[Geometry]):
         for g in geometries:
             if isinstance(g, OCCHullform):
                 pass
 
     @property
-    def app(self)->App:
+    def app(self) -> App:
         return self._app
 
     @property
-    def mainwin(self)->MainFrame:
+    def mainwin(self) -> MainFrame:
         return self.app.mainFrame
 
     @property
-    def glwin(self)->GlWin:
+    def glwin(self) -> GlWin:
         return self.mainwin.glWin
 
+
 class HullmodImporter(IOHandler):
-    def __init__(self,force_import=False):
+    def __init__(self, force_import=False):
         super().__init__()
 
     def import_geometry(self, fileName):
         if len(fileName) < 1:
             return
         filename_no_ext, file_extension = os.path.splitext(os.path.basename(fileName))
-        hf=None
+        hf = None
         if file_extension in self.getImportFormats():
             hf = OCCHullform(fileName, filename_no_ext)
         if hf is not None:
             return hf
 
     def export_geometry(self, fileName, geometry2export):
-        if isinstance(geometry2export,HullForm):
+        if isinstance(geometry2export, HullForm):
             geometry2export.exportGeometry(fileName)
-        om.write_mesh(geometry2export.mesh,fileName)
+        om.write_mesh(geometry2export.mesh, fileName)
         pass
 
     def getExportFormats(self):
-       return (".hoc",".igs")
+        return (".hoc", ".igs")
 
     def getImportFormats(self):
-        return (".hoc",".igs")
-
+        return (".hoc", ".igs")
 
 
 def createCommand():

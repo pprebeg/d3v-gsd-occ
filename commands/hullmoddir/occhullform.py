@@ -156,7 +156,6 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
 
     def extrude_side_shell(self):
         cover_high = 10000
-
         edges = TopExp_Explorer(self._surfaces[0], TopAbs_EDGE)
         z_ed = []
         while edges.More():
@@ -170,42 +169,29 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
             edges.Next()
         pris = BRepPrimAPI_MakePrism(border, gp_Vec(0, 0, cover_high)).Shape()
         self._surfaces[0] = BRepAlgoAPI_Fuse(self._surfaces[0], pris).Shape()
-
-        '''nurb_surface = self.nurbs_surface
-        n_poles_u = nurb_surface.NbUPoles()
-        n_poles_v = nurb_surface.NbVPoles()
-        pole_ids = product(range(n_poles_u), range(n_poles_v))
-        for pole_id, (u, v) in enumerate(pole_ids):
-            u_ind = u + 1
-            v_ind = v + 1
-            pole_ind = pole_id + 1
-            if pole_ind % n_poles_v == 0:
-                pole = nurb_surface.Pole(u_ind, v_ind)
-                pole.SetZ(cover_high)
-                nurb_surface.SetPole(u_ind, v_ind, pole)
-        new_surf = BRepBuilderAPI_MakeFace(nurb_surface, 1e-3).Face()
-        self._surfaces[0] = new_surf'''
         self.regenerateHullHorm()
         self.emit_geometries_rebuild()
         print('Hull shell changed')
 
     def close_transom(self):
-        nurb_surface = self.nurbs_surface
-        n_poles_v = nurb_surface.NbVPoles()
-        cover_high = nurb_surface.Pole(1, n_poles_v).Z()
-        xmin = nurb_surface.Pole(1, 1).X()
+        bb = self.bbox
+        xmin = float(np.around(bb.minCoord[0], 2))
         transom_plane = BRepBuilderAPI_MakeFace(Geom_Plane(gp_Pnt(xmin, 0, 0), gp_Dir(-1, 0, 0)), 1e-6).Shape()
-        transom_plane_section = BRepAlgoAPI_Section(nurb_surface, transom_plane, True)
+        transom_plane_section = BRepAlgoAPI_Section(self._surfaces[0], transom_plane, True)
         tp_expl = TopExp_Explorer(transom_plane_section.Shape(), TopAbs_VERTEX)
         tp_expl_edge = TopExp_Explorer(transom_plane_section.Shape(), TopAbs_EDGE)
         transom_plane_edge = tp_expl_edge.Value()
+        z_vert = []
         vertices_transom = []
-        transom_point = gp_Pnt(xmin, 0, cover_high)
         while tp_expl.More():
+            z = BRep_Tool_Pnt(tp_expl.Current()).Z()
+            z_vert += [z]
             vertices_transom += [BRep_Tool_Pnt(tp_expl.Current())]
             tp_expl.Next()
+        cover_high = max(z_vert)
+        transom_point = gp_Pnt(xmin, 0, cover_high)
         edge1 = BRepBuilderAPI_MakeEdge(transom_point, vertices_transom[0]).Shape()
-        edge2 = BRepBuilderAPI_MakeEdge(vertices_transom[1], transom_point).Shape()
+        edge2 = BRepBuilderAPI_MakeEdge(vertices_transom[-1], transom_point).Shape()
         transom_wire = BRepBuilderAPI_MakeWire()
         transom_wire.Add(edge1)
         transom_wire.Add(edge2)
@@ -218,26 +204,24 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
         self.emit_geometries_rebuild()
 
     def close_cover(self):
-        nurb_surface = self.nurbs_surface
-        n_poles_v = nurb_surface.NbVPoles()
-        water_draft = nurb_surface.Pole(1, n_poles_v).Z()
-        xmin = nurb_surface.Pole(1, 1).X()
+        bb = self.bbox
+        xmin = float(np.around(bb.minCoord[0], 2))
+        water_draft = 9000
         water_plane = BRepBuilderAPI_MakeFace(Geom_Plane(gp_Pnt(0, 0, water_draft), gp_Dir(0, 0, 1)), 1e-6).Shape()
-        water_plane_section = BRepAlgoAPI_Section(nurb_surface, water_plane, True)
+        water_plane_section = BRepAlgoAPI_Section(self._surfaces[0], water_plane, True)
         wp_expl = TopExp_Explorer(water_plane_section.Shape(), TopAbs_VERTEX)
         wp_expl_edge = TopExp_Explorer(water_plane_section.Shape(), TopAbs_EDGE)
-        water_plane_edge = wp_expl_edge.Value()
         vertices = []
         while wp_expl.More():
             vertices += [BRep_Tool_Pnt(wp_expl.Current())]
             wp_expl.Next()
+        water_plane_wire = BRepBuilderAPI_MakeWire()
+        while wp_expl_edge.More():
+            water_plane_wire.Add(wp_expl_edge.Current())
+            wp_expl_edge.Next()
         water_draft_point = gp_Pnt(xmin, 0, water_draft)
         edge1 = BRepBuilderAPI_MakeEdge(water_draft_point, vertices[0]).Shape()
-        edge2 = BRepBuilderAPI_MakeEdge(vertices[1], water_draft_point).Shape()
-        water_plane_wire = BRepBuilderAPI_MakeWire()
         water_plane_wire.Add(edge1)
-        water_plane_wire.Add(edge2)
-        water_plane_wire.Add(water_plane_edge)
         water_plane_profile = water_plane_wire.Wire()
         water_plane_face = BRepBuilderAPI_MakeFace(water_plane_profile).Face()
         new_surf = BRepAlgoAPI_Fuse(self._surfaces[0], water_plane_face).Shape()
