@@ -16,7 +16,7 @@ from OCC.Core.BRep import BRep_Tool_Pnt
 import csv
 from hullmoddir.occhelperfun import get_open_mesh_from_TopoDS_using_shape_tesselator
 from OCC.Display.SimpleGui import init_display
-import openmesh as om
+
 F = False
 T = True
 
@@ -87,6 +87,7 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
         if occ_entities is not None:
             self._surfaces = occ_entities[1]
             self._curves = occ_entities[0]
+        self.surface = self._surfaces[0]
         self.regenerateHullHorm()
 
     def regenerateHullHorm(self):
