@@ -30,6 +30,7 @@ try:
     from ship_stability_gui import ShipStabilityGUI
     from hullmoddir.occhullform import OCCHullform
     from hullform_command import HullFormCommand
+    from hullmoddir import optocchullform
 except BaseException as error:
     print('An exception occurred: {}'.format(error))
 except:
@@ -69,10 +70,38 @@ class HullmodCommand(Command):
         menuHullgenModify = self.menuOCCForm.addAction("&Modify form")
         menuHullgenModify.triggered.connect(self.onModifyHullgenForm)
 
+        menuHullsections = self.menuOCCForm.addAction("&Cross section curves")
+        menuHullsections.triggered.connect(self.onSectionCurves)
+
+        menuHullextrudeSide = self.menuOCCForm.addAction("&Extrude hull side shell")
+        menuHullextrudeSide.triggered.connect(self.onExtrudeSide)
+
+        menuHullcloseCover = self.menuOCCForm.addAction("&Close cover")
+        menuHullcloseCover.triggered.connect(self.onCloseCover)
+
+        menu_hullmod_opt = self.menuOCCForm.addAction("&Optimize form")
+        menu_hullmod_opt.triggered.connect(self.on_hulmod_opt)
+
+
+
+    def on_hulmod_opt(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            optocchullform.surface_through_curves_fit(self.hfcom.active_hull_form)
+
     def onModifyHullgenForm(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
             self.hfcom.active_hull_form.modify_form()
 
+    def onSectionCurves(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.cross_section_curves()
+
+    def onExtrudeSide(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.extrude_side_shell()
+    def onCloseCover(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            self.hfcom.active_hull_form.close_cover()
     @Slot()
     def onVisibleGeometryChanged(self, visible:List[Geometry], loaded:List[Geometry], selected:List[Geometry]):
         for g in visible:
