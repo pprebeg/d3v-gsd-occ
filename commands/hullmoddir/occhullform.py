@@ -16,12 +16,13 @@ from OCC.Core.BRep import BRep_Tool_Pnt
 import csv
 from hullmoddir.occhelperfun import get_open_mesh_from_TopoDS_using_shape_tesselator
 from OCC.Display.SimpleGui import init_display
+import hullmoddir.occhullmanipulation as occhm
 
 F = False
 T = True
 
 
-def get_relative_path(full_path,referent_file):
+def get_relative_path(full_path, referent_file):
     relative_path = ''
     return relative_path
 
@@ -66,7 +67,7 @@ def read_igs_file(file_path):
     return curves, surfaces
 
 
-class OCCHullform(HullForm, CADDeformation, ShipStability):
+class OCCHullform(HullForm):
     def __init__(self, fileName, name="", translation=np.zeros(3)):
         super().__init__(fileName, name, translation)
         self.tolerance = 1e-6
@@ -80,15 +81,27 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
             self._shipdata = read_hoc_file()
             surface_path = self._shipdata.get('surface_file_relative_path')
             if surface_path is not None:
-                full_path = get_full_path(surface_path,self.filename)
+                full_path = get_full_path(surface_path, self.filename)
                 occ_entities = read_hoc_file(full_path)
         elif file_extension == ".igs":
             occ_entities = read_igs_file(self.filename)
         if occ_entities is not None:
             self._surfaces = occ_entities[1]
             self._curves = occ_entities[0]
-        self.surface = self._surfaces[0]
+        self.shape = occ_entities[1]
         self.regenerateHullHorm()
+
+    def new_coords_x(self):
+        return occhm.lackenby(self._surfaces[0], delta_cp=0.05, delta_p=0.05, station_starts='aft')
+
+    def new_stations(self):
+        return occhm.get_station_curve_gp_points(self._surfaces[0])
+
+    def bounding_box(self):
+        return occhm.bounding_box(self._surfaces[0])
+
+    def nurbs_surface(self):
+        return occhm.nurbs_surface(self._surfaces[0])
 
     def regenerateHullHorm(self):
         if len(self._surfaces) > 0:
@@ -149,7 +162,7 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
                 wire = BRepBuilderAPI_MakeWire(explorer.Value())
                 nurbs = self.bspline_curve_from_wire(wire.Wire())
                 section_curves += [nurbs]
-            if T:
+            if F:
                 display, start_display, add_menu, add_function_to_menu = init_display()
                 for curv in section_curves:
                     display.DisplayShape(curv, update=True, color='Blue1')
@@ -229,3 +242,5 @@ class OCCHullform(HullForm, CADDeformation, ShipStability):
         self._surfaces[0] = new_surf
         self.regenerateHullHorm()
         self.emit_geometries_rebuild()
+
+

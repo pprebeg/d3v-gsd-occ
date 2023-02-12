@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QFileDialog, QDialogButtonBox, QProgressDialog, QM
 from PySide6.QtCore import SIGNAL, SLOT
 from typing import Dict, List
 from uuid import uuid4
-
+import numpy as np
 import hullformdir.hullgeneratorform
 
 try:
@@ -30,6 +30,7 @@ try:
     from ship_stability_gui import ShipStabilityGUI
     from hullmoddir.occhullform import OCCHullform
     from hullform_command import HullFormCommand
+    import hullmoddir.optocchullform as opthf
 except BaseException as error:
     print('An exception occurred: {}'.format(error))
 except:
@@ -64,7 +65,6 @@ class HullmodCommand(Command):
             print('An exception occurred: {}'.format(error))
         except:
             print('Unknown exception occurred during signals connection')
-
         self.menuOCCForm = QMenu("&OCC Form")
         self.hfcom.menuMain.insertMenu(self.hfcom.menuHullGenForm.menuAction(), self.menuOCCForm)
 
@@ -82,6 +82,9 @@ class HullmodCommand(Command):
 
         menuHullcloseCover = self.menuOCCForm.addAction("&Close cover")
         menuHullcloseCover.triggered.connect(self.onCloseCover)
+
+        menu_hullmod_opt = self.menuOCCForm.addAction("&Optimize form")
+        menu_hullmod_opt.triggered.connect(self.on_hulmod_opt)
 
     def onModifyHullgenForm(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
@@ -102,6 +105,10 @@ class HullmodCommand(Command):
     def onCloseCover(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
             self.hfcom.active_hull_form.close_cover()
+
+    def on_hulmod_opt(self):
+        if isinstance(self.hfcom.active_hull_form, OCCHullform):
+            opthf.surface_through_curves_fit(self.hfcom.active_hull_form)
 
     @Slot()
     def onVisibleGeometryChanged(self, visible: List[Geometry], loaded: List[Geometry], selected: List[Geometry]):

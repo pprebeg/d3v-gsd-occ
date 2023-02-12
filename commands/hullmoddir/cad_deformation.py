@@ -86,7 +86,6 @@ class CADDeformation:
         self.t_knots_to_add = t_knots_to_add
         self.tolerance = tolerance
 
-
     def read_shape(filename):
         """
         Static method to load the `topoDS_Shape` from a file.
@@ -124,7 +123,6 @@ class CADDeformation:
                 raise RuntimeError("Shapes not loaded.")
         else:
             raise RuntimeError("Cannot read the file.")
-
 
     def write_shape(filename, shape):
         """
@@ -170,8 +168,7 @@ class CADDeformation:
             raise ValueError('Unable to open the output file')
         writer(filename, shape)
 
-
-    def bspline_surface_from_face(self, face):
+    def bspline_surface_from_face(face):
         """
         Static method that takes a TopoDS_Face and transforms it into a
         Bspline_Surface.
@@ -189,8 +186,7 @@ class CADDeformation:
         bspline_surface = geomconvert_SurfaceToBSplineSurface(surface)
         return bspline_surface
 
-
-    def bspline_curve_from_wire(self, wire):
+    def bspline_curve_from_wire(wire):
         """
         Static method that takes a TopoDS_Wire and transforms it into a
         Bspline_Curve.
@@ -228,13 +224,12 @@ class CADDeformation:
             bspline_curve = geomconvert_CurveToBSplineCurve(nurbs_curve)
 
             # we can now add the Bspline curve to the composite wire curve
-            composite_curve_builder.Add(bspline_curve, self.tolerance)
+            composite_curve_builder.Add(bspline_curve, 1e-5)
             edge_explorer.Next()
 
         # GeomCurve obtained by the builder after edges are joined
         comp_curve = composite_curve_builder.BSplineCurve()
         return comp_curve
-
 
     def _enrich_curve_knots(self, bsp_curve):
         """
@@ -255,7 +250,6 @@ class CADDeformation:
             bsp_curve.InsertKnot(first_param + \
                                  i * (last_param - first_param) / self.t_knots_to_add, 1, \
                                  self.tolerance)
-
 
     def _enrich_surface_knots(self, bsp_surface):
         """
@@ -279,17 +273,14 @@ class CADDeformation:
             bsp_surface.InsertVKnot(bounds[2] + \
                                     i * (bounds[3] - bounds[2]) / self.v_knots_to_add, 1, self.tolerance)
 
-
     def pole_get_components(self, pole):
         """ Extract component from gp_Pnt """
         return pole.X(), pole.Y(), pole.Z()
-
 
     def pole_set_components(self, components):
         """ Return a gp_Pnt with the passed components """
         assert len(components) == 3
         return gp_Pnt(*components)
-
 
     def _deform_bspline_curve(self, bsp_curve):
         """
@@ -320,7 +311,6 @@ class CADDeformation:
         for pole_id in range(n_poles):
             new_pole = self._pole_set_components(new_pts[pole_id, :])
             bsp_curve.SetPole(pole_id + 1, new_pole)
-
 
     def _deform_bspline_surface(self, bsp_surface):
         """
@@ -353,7 +343,6 @@ class CADDeformation:
         for pole_id, (u, v) in enumerate(pole_ids):
             new_pole = self._pole_set_components(new_pts[pole_id, :])
             bsp_surface.SetPole(u + 1, v + 1, new_pole)
-
 
     def __call__(self, obj, dst=None):
         """
