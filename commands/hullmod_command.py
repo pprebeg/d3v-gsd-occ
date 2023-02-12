@@ -30,7 +30,8 @@ try:
     from ship_stability_gui import ShipStabilityGUI
     from hullmoddir.occhullform import OCCHullform
     from hullform_command import HullFormCommand
-    import hullmoddir.optocchullform as opthf
+    #import hullmoddir.optocchullform as opthf
+    from hullmoddir.optocchullform import *
 except BaseException as error:
     print('An exception occurred: {}'.format(error))
 except:
@@ -108,7 +109,8 @@ class HullmodCommand(Command):
 
     def on_hulmod_opt(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):
-            opthf.surface_through_curves_fit(self.hfcom.active_hull_form)
+            #opthf.surface_through_curves_fit(self.hfcom.active_hull_form)
+            surface_through_curves_fit(self.hfcom.active_hull_form)
 
     @Slot()
     def onVisibleGeometryChanged(self, visible: List[Geometry], loaded: List[Geometry], selected: List[Geometry]):

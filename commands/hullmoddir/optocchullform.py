@@ -1,4 +1,4 @@
-from optbase import AnalysisExecutor, OptimizationProblem, SimpleInputOutputArrayAnalysisExecutor
+from optbase import AnalysisExecutor, OptimizationProblem,SingleobjectiveOptimizationOutput
 from optbase import DesignVariable, DesignConstraint, DesignObjective, NdArrayGetSetConnector, NdArrayGetConnector
 from optlib_scipy import ScipyOptimizationAlgorithm
 from optlib_pymoo_proto import PymooOptimizationAlgorithmMulti, PymooOptimizationAlgorithmSingle
@@ -6,6 +6,8 @@ from optbase import AnalysisResultType, BasicGetSetConnector, BasicGetConnector
 from OCC.Core.GeomAPI import GeomAPI_ProjectPointOnSurf
 from itertools import product
 from hullmoddir.occhullform import OCCHullform
+from geometry_extend import GeometryExtension
+import openmesh as om
 
 
 class CallbackPoleXGetSetConnector(BasicGetSetConnector):
@@ -150,18 +152,35 @@ T = True
 
 
 def surface_through_curves_fit(hullform: OCCHullform):
+    init_geo= GeometryExtension('opt_geo_initial')
+    hullform.regenerateHullHorm()
+    fvi = hullform.mesh.fv_indices()
+    points = hullform.mesh.points()
+    init_geo.mesh = om.TriMesh(points, fvi)
+    init_geo.emit_geometry_built()
     op = OCCHullForm_SurfaceFitCurves_OptimizationProblem('Hullmod', hullform)
-    if F:  # nelder-mead
-        termination = ('n_eval', 50)
+    op._init_opt_problem()
+    x0 = op.get_initial_design()
+    op.evaluate(x0)
+    op._opt_output = SingleobjectiveOptimizationOutput('InitialDesign', op.name, 0, 1, op.get_current_sol())
+    op.print_output()
+    if T:  # nelder-mead
+        termination = ('n_eval', 20)
         nm_ctrl = {'termination': termination}
         op.opt_algorithm = PymooOptimizationAlgorithmSingle('nelder-mead_default', 'nelder-mead', alg_ctrl=nm_ctrl)
 
-    if T:  # Sequential Least SQuares Programming
-        opt_ctrl = {'maxiter': 100000}
+    if F:  # Sequential Least SQuares Programming
+        opt_ctrl = {'maxiter': 1000}
         op.opt_algorithm = ScipyOptimizationAlgorithm('SLSQP_mi=1000', 'SLSQP', opt_ctrl)
     if True:
         sol = op.optimize()
         op.print_output()
     else:
         sol = op.optimize_and_write(out_folder_path)
+    final_geo = GeometryExtension('opt_geo_final')
+    hullform.regenerateHullHorm()
+    fvi = hullform.mesh.fv_indices()
+    points = hullform.mesh.points()
+    final_geo.mesh = om.TriMesh(points, fvi)
+    final_geo.emit_geometry_built()
     return sol
