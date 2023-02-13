@@ -27,7 +27,7 @@ def get_relative_path(full_path, referent_file):
     return relative_path
 
 
-def get_full_path(file_name,referent_file):
+def get_full_path(file_name, referent_file):
     full_path=''
     return full_path
 
@@ -92,7 +92,7 @@ class OCCHullform(HullForm):
         self.regenerateHullHorm()
 
     def new_coords_x(self):
-        return occhm.lackenby(self._surfaces[0], delta_cp=0.05, delta_p=0.05, station_starts='aft')
+        return occhm.lackenby(self._surfaces[0], delta_cp=0.15, delta_p=0.2, station_starts='aft')
 
     def new_stations(self):
         return occhm.get_station_curve_gp_points(self._surfaces[0])
