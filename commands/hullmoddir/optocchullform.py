@@ -1,4 +1,4 @@
-from optbase import AnalysisExecutor, OptimizationProblem,SingleobjectiveOptimizationOutput
+from optbase import AnalysisExecutor, OptimizationProblem, SingleobjectiveOptimizationOutput
 from optbase import DesignVariable, DesignConstraint, DesignObjective, NdArrayGetSetConnector, NdArrayGetConnector
 from optlib_scipy import ScipyOptimizationAlgorithm
 from optlib_pymoo_proto import PymooOptimizationAlgorithmMulti, PymooOptimizationAlgorithmSingle
@@ -8,6 +8,7 @@ from itertools import product
 from hullmoddir.occhullform import OCCHullform
 from geometry_extend import GeometryExtension
 import openmesh as om
+from OCC.Display.SimpleGui import init_display
 
 
 class CallbackPoleXGetSetConnector(BasicGetSetConnector):
@@ -62,18 +63,6 @@ class SurfDistGetCallbackConnector(BasicGetConnector):
         return self._dist
 
 
-class PoleXInitGetCallbackConnector(BasicGetConnector):
-    """Class used to connect and normalize objective functions and such."""
-
-    def __init__(self, pole):
-        pass
-        self._pole = pole
-
-    @property
-    def value(self):
-        return self._pole.X()
-
-
 class OCCHullForm_SurfaceFitCurves_Analysis(AnalysisExecutor):
 
     def __init__(self, hullform: OCCHullform):
@@ -87,7 +76,7 @@ class OCCHullForm_SurfaceFitCurves_Analysis(AnalysisExecutor):
         n_poles_v = self.nurbs_surface.NbVPoles()
         self.poles = []
         pole_ids = product(range(n_poles_u), range(n_poles_v))
-        self.dists = 0
+        self.dist = 0
         for pole_id, (u, v) in enumerate(pole_ids):
             pole = self.nurbs_surface.Pole(u + 1, v + 1)
             self.poles.append(pole)
@@ -99,12 +88,22 @@ class OCCHullForm_SurfaceFitCurves_Analysis(AnalysisExecutor):
                 x.SetX(new_x)
 
     def analyze(self):
+        # display, start_display, add_menu, add_function_to_menu = init_display()
+        # display.DisplayShape(self.nurbs_surface, update=True, color='red')
         n_poles_u = self.nurbs_surface.NbUPoles()
         n_poles_v = self.nurbs_surface.NbVPoles()
         pole_ids = product(range(n_poles_u), range(n_poles_v))
         for pole_id, (u, v) in enumerate(pole_ids):
+            if pole_id > n_poles_v - 1:
             pole = self.poles[pole_id]
             self.nurbs_surface.SetPole(u + 1, v + 1, pole)
+                print(pole_id, pole.X())
+        # display.DisplayShape(self.nurbs_surface, update=True, color='black')
+        # start_display()
+        return AnalysisResultType.OK
+
+    def dists(self):
+        distance = self.dist
         n_pnts = 10 - 2
         pnt_list = []
         for lists in self.new_stations.values():
@@ -115,8 +114,19 @@ class OCCHullForm_SurfaceFitCurves_Analysis(AnalysisExecutor):
             for p in lists:
                 proj = GeomAPI_ProjectPointOnSurf(p, self.nurbs_surface)
                 dist = proj.Distance(1) ** 2
-                self.dists += dist
-        return AnalysisResultType.OK
+                distance += dist
+        return distance
+
+    # def surf(self):
+    #     surface = self.nurbs_surface
+    #     n_poles_u = surface.NbUPoles()
+    #     n_poles_v = surface.NbVPoles()
+    #     pole_ids = product(range(n_poles_u), range(n_poles_v))
+    #     for pole_id, (u, v) in enumerate(pole_ids):
+    #         if pole_id > n_poles_v - 1:
+    #             pole = self.poles[pole_id]
+    #             surface.SetPole(u + 1, v + 1, pole)
+    #     return surface
 
 
 class OCCHullForm_SurfaceFitCurves_OptimizationProblem(OptimizationProblem):
@@ -127,21 +137,25 @@ class OCCHullForm_SurfaceFitCurves_OptimizationProblem(OptimizationProblem):
         am = OCCHullForm_SurfaceFitCurves_Analysis(hullform)
         n_poles_u = am.nurbs_surface.NbUPoles()
         n_poles_v = am.nurbs_surface.NbVPoles()
-        dist = am.dists
+        dist = am.dists()
+        # surf = am.surf()
+        # n_poles_u = surf.NbUPoles()
+        # n_poles_v = surf.NbVPoles()
         pole_ids = product(range(n_poles_u), range(n_poles_v))
         for pole_id, (u, v) in enumerate(pole_ids):
-            if pole_id > n_poles_v-1:
+            if pole_id > n_poles_v - 1:
                 pole = am.poles[pole_id]
                 pole_con = CallbackPoleXGetSetConnector(pole)
                 lb = pole.X() * 0.9
                 ub = pole.X() * 1.1
-                self.add_design_variable(DesignVariable(str(f' Pole {pole_id}: {u+1}|{v+1}'),
+                self.add_design_variable(DesignVariable(str(f' Pole {pole_id}: {u + 1}|{v + 1}'),
                                                         pole_con, min(lb, ub), max(lb, ub)))
                 pole_prev = am.poles[pole_id - n_poles_v]
                 const_con = PoleXDiffGetCallbackConnector(pole_prev, pole)
                 self.add_constraint(DesignConstraint(
-                    str(f' Pole Diff. Constr. - {pole_id - n_poles_v}|{pole_id}'),
+                    str(f' Diff: ({pole_id}: {u + 1}|{v + 1}) - ({pole_id - n_poles_v}: {u + 1}|{v})'),
                     const_con, 0))
+                # surf.SetPole(u+1, v+1, pole)
         dist_conn = SurfDistGetCallbackConnector(dist)
         self.add_objective(DesignObjective(' Sum of sq dist', dist_conn))
         self.add_analysis_executor(am)
@@ -152,7 +166,7 @@ T = True
 
 
 def surface_through_curves_fit(hullform: OCCHullform):
-    init_geo= GeometryExtension('opt_geo_initial')
+    init_geo = GeometryExtension('opt_geo_initial')
     hullform.regenerateHullHorm()
     fvi = hullform.mesh.fv_indices()
     points = hullform.mesh.points()
@@ -164,6 +178,12 @@ def surface_through_curves_fit(hullform: OCCHullform):
     op.evaluate(x0)
     op._opt_output = SingleobjectiveOptimizationOutput('InitialDesign', op.name, 0, 1, op.get_current_sol())
     op.print_output()
+
+    x0 = op.get_initial_design(True)
+    op.evaluate(x0)
+    op._opt_output = SingleobjectiveOptimizationOutput('RandDesign', op.name, 0, 1, op.get_current_sol())
+    op.print_output()
+    return
     if T:  # nelder-mead
         termination = ('n_eval', 20)
         nm_ctrl = {'termination': termination}
