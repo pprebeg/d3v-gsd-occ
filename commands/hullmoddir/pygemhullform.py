@@ -27,7 +27,8 @@ from OCC.Display.SimpleGui import init_display
 
 from OCC.Extend.ShapeFactory import point_list_to_TColgp_Array1OfPnt, make_face
 
-
+def test():
+    pass
 def make_block(block_dims=np.array([20, 6, 3]), move_vector=np.array([0, 0, 0])):
     mesh = om.TriMesh()
     axes = []
@@ -170,7 +171,9 @@ class PyGemHullform(ffd_maker):
                 deformed_surface =  ffd(surface)       #vraca compound?
                 deformed_surface = self.regenerate_surface(deformed_surface)
                 self._deformed_surfaces.append(deformed_surface)
+
         self._surfaces = self._deformed_surfaces
+        self.visualise_surface()
         self.regenerateHullHorm()
 
 

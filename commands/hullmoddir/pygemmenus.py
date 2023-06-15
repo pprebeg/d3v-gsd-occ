@@ -111,7 +111,7 @@ class DeformFFDBox_menu(QWidget):
         self._scale_limit = scale_limit
         self._tick_density = tick_density       #how many intervals are there between integers
 
-        self._active_deformation = True                 #Qt.CheckState.Checked
+        self._active_deformation = False                 #Qt.CheckState.Checked
         self._cpoint_id = [1,1,1]
         self._total_ticks = int(self._tick_density * self._scale_limit)
         self._interval_len = 1/self._tick_density
@@ -194,6 +194,7 @@ class DeformFFDBox_menu(QWidget):
 
     def on_deform_button_clicked(self):    #when deform button is clicked
         move_vector = [self._x_scaling, self._y_scaling, self._z_scaling]
+        print(move_vector)
         self.Hullform.move_ffd_pole(ffd_id = 0, pole_id = self._cpoint_id, move_vector = move_vector)       #kasnije promijeni ffd_id, ovo je samo za test
         self.Hullform.make_ffd_box_mesh()
         self.Hullform.ffd_deform_surfaces()
