@@ -145,7 +145,7 @@ class ffd_maker():
 class PyGemHullform(ffd_maker):
     def __init__(self):
         super().__init__()
-        self._deformed_surfaces = []
+
     def visualise_surface(self):
         display, start_display, add_menu, add_function_to_menu = init_display()
         for i in self._surfaces:
@@ -166,15 +166,17 @@ class PyGemHullform(ffd_maker):
         start_display()
 
     def ffd_deform_surfaces(self):
+        deformed_surfaces = []
         for surface in self._surfaces:
             for ffd in self._ffd_volumes.values():
                 deformed_surface =  ffd(surface)       #vraca compound?
                 deformed_surface = self.regenerate_surface(deformed_surface)
-                self._deformed_surfaces.append(deformed_surface)
+            deformed_surfaces.append(deformed_surface)
 
-        self._surfaces = self._deformed_surfaces
-        self.visualise_surface()
+        self._surfaces = deformed_surfaces
+        # self.visualise_surface()
         self.regenerateHullHorm()
+        # self.visualise_surface()
 
 
     def regenerate_surface(self, surface):

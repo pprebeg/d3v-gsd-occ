@@ -1,7 +1,8 @@
 from ast import literal_eval
 from numpy import array
 from PySide6.QtCore import Qt
-
+from PySide6.QtGui import QCloseEvent
+from copy import copy
 
 from PySide6.QtWidgets import (
     QApplication,
@@ -107,7 +108,13 @@ class CreateFFDBox_menu(QWidget):
 class DeformFFDBox_menu(QWidget):
     def __init__(self, Hullform, scale_limit = 3, tick_density = 5):
         super().__init__()
-        self.Hullform=Hullform
+        self.Hullform = Hullform
+
+        #for undo:
+        self._memory_surfaces = [copy(self.Hullform._surfaces), ]
+        self._memory_mesh = [copy(self.Hullform.mesh), ]
+        self._current_id = 0
+
         self._scale_limit = scale_limit
         self._tick_density = tick_density       #how many intervals are there between integers
 
@@ -160,6 +167,12 @@ class DeformFFDBox_menu(QWidget):
         self.Deformation_slider_z.setTickPosition(QSlider.TickPosition.TicksBothSides)
 
         self.deform_button = QPushButton("Deform Box")
+        self.undo_button = QPushButton("Undo")
+        self.redo_button = QPushButton("Redo")
+        self.reset_button = QPushButton("Reset")
+        self.done_button = QPushButton("Done")
+        self.cancel_button = QPushButton("Cancel")
+        self.debug_button = QPushButton("Debug")
 
         #adding widgets to window
         self.layout.addWidget(self.active_deformation_check_label)
@@ -176,6 +189,12 @@ class DeformFFDBox_menu(QWidget):
         self.layout.addWidget(self.Deformation_slider_z_label)
         self.layout.addWidget(self.Deformation_slider_z)
         self.layout.addWidget(self.deform_button)
+        self.layout.addWidget(self.undo_button)
+        self.layout.addWidget(self.redo_button)
+        self.layout.addWidget(self.reset_button)
+        self.layout.addWidget(self.done_button)
+        self.layout.addWidget(self.cancel_button)
+        self.layout.addWidget(self.debug_button)
 
         #connect signals:
         self.active_deformation_checkbox.stateChanged.connect(self.on_checkbox_toggle)
@@ -184,6 +203,12 @@ class DeformFFDBox_menu(QWidget):
         self.Deformation_slider_y.sliderMoved.connect(self.on_y_slider_change)
         self.Deformation_slider_z.sliderMoved.connect(self.on_z_slider_change)
         self.deform_button.clicked.connect(self.on_deform_button_clicked)
+        self.undo_button.clicked.connect(self.on_undo_button_clicked)
+        self.redo_button.clicked.connect(self.on_redo_button_clicked)
+        self.reset_button.clicked.connect(self.on_reset_button_clicked)
+        self.done_button.clicked.connect(self.on_done_button_clicked)
+        self.cancel_button.clicked.connect(self.on_cancel_button_clicked)
+        self.debug_button.clicked.connect(self.on_debug_button_clicked)
 
 
     def on_checkbox_toggle(self):
@@ -194,10 +219,54 @@ class DeformFFDBox_menu(QWidget):
 
     def on_deform_button_clicked(self):    #when deform button is clicked
         move_vector = [self._x_scaling, self._y_scaling, self._z_scaling]
-        print(move_vector)
+        memory_id = copy(self._current_id)
+        self.set_mesh_and_surface(0)
         self.Hullform.move_ffd_pole(ffd_id = 0, pole_id = self._cpoint_id, move_vector = move_vector)       #kasnije promijeni ffd_id, ovo je samo za test
         self.Hullform.make_ffd_box_mesh()
         self.Hullform.ffd_deform_surfaces()
+        self._current_id = memory_id
+        self.add_mesh_and_surface()
+
+    def on_reset_button_clicked(self):      #return surfaces and mesh to original value
+        self.set_mesh_and_surface(0)    #sets mesh and surfaces to id 0 which is the original
+    def on_undo_button_clicked(self):
+        if self._current_id > 0:
+            self.set_mesh_and_surface(self._current_id - 1)
+        else:
+            print("Already at original surface.")
+
+    def on_redo_button_clicked(self):
+        if self._current_id < (len(self._memory_mesh) - 1):
+            self.set_mesh_and_surface(self._current_id + 1)
+        else:
+            print("Already at last surface.")
+
+    def on_done_button_clicked(self):
+        self.delete_window()
+
+    def on_cancel_button_clicked(self):
+        self.set_mesh_and_surface(0)
+        self.delete_window()
+    # def on_window_close(self, event: QCloseEvent):    #treba li ovo?
+    #     pass
+
+    def on_debug_button_clicked(self):
+        print(self.Hullform._surfaces)
+        print(self.Hullform.mesh)
+        print(self._current_id)
+        print(self._memory_mesh)
+        print(self._memory_surfaces)
+
+    def set_mesh_and_surface(self, id): # if cutoff is true, delete items on array after the current id
+        self._current_id = id
+        self.Hullform.mesh = self._memory_mesh[self._current_id]
+        self.Hullform._surfaces = self._memory_surfaces[self._current_id]
+
+    def add_mesh_and_surface(self):
+        self._current_id += 1
+        self._memory_mesh.append(self.Hullform.mesh)
+        self._memory_surfaces.append(self.Hullform._surfaces)
+
 
     def on_cpoint_change(self):
         id = text_to_list(self.Deformation_cpoint_id_input.text())
@@ -229,6 +298,7 @@ class DeformFFDBox_menu(QWidget):
 
     def delete_window(self):
         self.destroy()
+        # self.close()  #ovo triggera close event?
 
 
 

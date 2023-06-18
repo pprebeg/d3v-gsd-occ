@@ -453,8 +453,9 @@ class OCCHullform(HullForm, PyGemHullform):
         # self.make_ffd_box_mesh()
         # self.move_ffd_pole(0, [1,1,1], [1,0.8,1.1])
         # self.ffd_deform_surfaces()
-
+        # self.regenerateHullHorm()
         # self.visualise_surface()
+
 
 
     def new_coords_x(self):
@@ -501,8 +502,13 @@ class OCCHullform(HullForm, PyGemHullform):
         print(f'KM: {occhm.metacentre(self._surfaces[0])}')
 
     def regenerateHullHorm(self):
-        if len(self._surfaces) > 0:
-            self.mesh = get_open_mesh_from_TopoDS_using_shape_tesselator(self._surfaces[0], mesh_quality=0.1)
+        n_surfaces = len(self._surfaces)
+        if n_surfaces > 0:
+            meshes = []
+            for surf in self._surfaces:
+                meshes.append(get_open_mesh_from_TopoDS_using_shape_tesselator(surf, mesh_quality=0.2))
+            if n_surfaces > 1:  #n of meshes and n of surfaces is the same
+                self.mesh = soft_merge_meshes(meshes)
             self.miror_mesh_around_simetry_plan()
 
     def modify_form(self):
