@@ -359,6 +359,7 @@ from hullformdir.shipstability import *
 from hullmoddir.pygemhullform import *
 from typing import Dict
 from OCC.Core.IGESControl import IGESControl_Reader
+from OCC.Core.Interface import Interface_Static
 from OCC.Core.TopAbs import TopAbs_WIRE, TopAbs_FACE, TopAbs_EDGE, TopAbs_VERTEX
 from itertools import product
 from OCC.Core.BRepBuilderAPI import (BRepBuilderAPI_MakeFace, BRepBuilderAPI_MakeWire, BRepBuilderAPI_GTransform,
@@ -410,7 +411,10 @@ def read_hoc_file(file_path: str):
 def read_igs_file(file_path):
     curves = []
     surfaces = []
+
+
     igsreader = IGESControl_Reader()
+    Interface_Static.SetCVal("xstep.cascade.unit", "M")
     igsreader.ReadFile(file_path)
     igsreader.TransferRoots()
     nbr = igsreader.NbShapes()
