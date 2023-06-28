@@ -4,7 +4,8 @@ import openmesh as om
 from pygem.cad import *
 from copy import copy
 
-
+from OCC.Core.gp import gp_Trsf, gp_Vec
+from OCC.Core.BRepBuilderAPI import BRepBuilderAPI_Transform
 from OCC.Core.BRepPrimAPI import BRepPrimAPI_MakeBox
 from OCC.Core.Tesselator import *
 # from OCC.Extend.TopologyUtils import TopologyExplorer
@@ -27,8 +28,6 @@ from OCC.Display.SimpleGui import init_display
 
 from OCC.Extend.ShapeFactory import point_list_to_TColgp_Array1OfPnt, make_face
 
-def test():
-    pass
 def make_block(block_dims=np.array([20, 6, 3]), move_vector=np.array([0, 0, 0])):
     mesh = om.TriMesh()
     axes = []
@@ -98,6 +97,79 @@ def soft_merge_meshes(meshes, vh_idx_to_sync_list=None):  # meshes je lista sa m
             points = np.append(points, mesh.points(), axis=0)
 
         return (om.TriMesh(points, merged_fvi), synced_vh_idx)
+
+def hard_merge_meshes(meshes, vh_idx_to_sync_list=None):  # vh_idx_to_sync_list is list with numpy arrays
+    if vh_idx_to_sync_list is None:
+        merged_mesh = soft_merge_meshes(meshes)
+        merged_mesh_fvi = merged_mesh.face_vertex_indices()
+        merged_mesh_points = merged_mesh.points()
+
+        bool = np.isclose(np.expand_dims(merged_mesh_points, 0), np.expand_dims(merged_mesh_points, 1)).all(
+            -1)  # check for coincident points
+        # clean diag and lower triangle matrix
+        bool[np.diag_indices(bool.shape[0])] = False
+        bool = np.triu(bool)
+        ind = np.asarray(np.where(bool))
+        # remove duplicates incase 3+ vh idx on same point
+        data = np.unique(ind[1], return_index=True)  # [0] unique values, [1] their indices in orig array,
+        ind = ind[:, data[1]]
+        # delete duplicate points, replace duplicate vh_idx in fvi
+        # duplicate vh_idx reduction:
+        fvi_ind = np.where(np.expand_dims(merged_mesh_fvi, 0) == ind[1].reshape(-1, 1, 1))
+        merged_mesh_fvi[fvi_ind[1:3]] = ind[0][fvi_ind[
+            0]]  # slice fvi ind because [0] is indice of what vh_idx the fvi were compared to, 1,2 are actual indices of fvi to be replaced
+        # syncing fvi after deleting duplicate points:
+        vh_to_delete = np.unique(ind[1])
+        vh_to_keep = np.delete(np.arange(merged_mesh_points.shape[0]), vh_to_delete, 0)
+        merged_mesh_points = np.delete(merged_mesh_points, vh_to_delete, 0)
+        fvi_ind = np.where(np.expand_dims(merged_mesh_fvi, 0) == vh_to_keep.reshape(-1, 1, 1))
+        merged_mesh_fvi[fvi_ind[1:3]] = fvi_ind[
+            0]  # slice fvi ind because [0] is indice of what vh_idx the fvi were compared to, 1,2 are actual indices of fvi to be replaced
+
+        return om.TriMesh(merged_mesh_points, merged_mesh_fvi)
+
+    else:
+        data = soft_merge_meshes(meshes, vh_idx_to_sync_list)
+        merged_mesh = data[0]
+        vh_idx_to_sync_list = data[1]
+        merged_mesh_fvi = merged_mesh.face_vertex_indices()
+        merged_mesh_points = merged_mesh.points()
+
+        bool = np.isclose(np.expand_dims(merged_mesh_points, 0), np.expand_dims(merged_mesh_points, 1)).all(-1)
+        # clean diag and lower triangle matrix
+        bool[np.diag_indices(bool.shape[0])] = False
+        bool = np.triu(bool)
+        ind = np.asarray(np.where(bool))
+        # remove duplicates incase 3+ vh idx on same point
+        data = np.unique(ind[1], return_index=True)  # [0] unique values, [1] their indices in orig array,
+        ind = ind[:, data[1]]  # ind[0] new vh idx for duplicates, ind[1] old vh idx for duplicates
+        # delete duplicate points, replace duplicate vh_idx in fvi
+        # duplicate vh_idx reduction:
+        fvi_ind = np.where(np.expand_dims(merged_mesh_fvi, 0) == ind[1].reshape(-1, 1, 1))
+        merged_mesh_fvi[fvi_ind[1:3]] = ind[0][fvi_ind[
+            0]]  # slice fvi ind because [0] is indice of what vh_idx the fvi were compared to, 1,2 are actual indices of fvi to be replaced
+        # syncing fvi afrer deleting duplicate points:
+        vh_to_delete = np.unique(ind[1])
+        vh_to_keep = np.delete(np.arange(merged_mesh_points.shape[0]), vh_to_delete, 0)
+        merged_mesh_points = np.delete(merged_mesh_points, vh_to_delete, 0)
+        fvi_ind = np.where(np.expand_dims(merged_mesh_fvi, 0) == vh_to_keep.reshape(-1, 1, 1))
+        merged_mesh_fvi[fvi_ind[1:3]] = fvi_ind[
+            0]  # slice fvi ind because [0] is indice of what vh_idx the fvi were compared to, 1,2 are actual indices of fvi to be replaced
+
+        # sync vh idx:
+        synced_vh_idx_list = []
+        for vh_idx_to_sync in vh_idx_to_sync_list:
+            data = np.intersect1d(vh_idx_to_sync, ind[1], return_indices=True)
+            vh_idx_to_sync[data[1]] = ind[0][data[2]]
+
+            # syncing vi after deleting duplicate points:
+            data = np.where(np.expand_dims(vh_idx_to_sync, 0) == np.expand_dims(vh_to_keep, 1))
+            vh_idx_to_sync[data[1:3]] = data[0]
+
+            synced_vh_idx_list.append(vh_idx_to_sync)
+        return (om.TriMesh(merged_mesh_points, merged_mesh_fvi), synced_vh_idx_list)
+
+
 def move_mesh(mesh, move_vector):
     return om.TriMesh(mesh.points() + move_vector, mesh.face_vertex_indices())
 
@@ -145,6 +217,29 @@ class ffd_maker():
 class PyGemHullform(ffd_maker):
     def __init__(self):
         super().__init__()
+
+    def position_form(self,x_offset = 0):    #positions the mesh and surfaces so that the x=0 is roughly at aft perpendicular and the min point is at z = 0, x offset is percentage L of how much to move the form in -x direction
+        points = self.mesh.points()
+        x = points[:,0]
+        z = points[:,2]
+        xmin = np.min(x)
+        zmin = np.min(z)
+
+        #move the sufaces:
+        transformation = gp_Trsf()
+        translation_vector = gp_Vec(-xmin - self.L*x_offset, 0, -zmin)
+        transformation.SetTranslation(translation_vector)
+        for i in range(len(self._surfaces)):
+            self._surfaces[i] = BRepBuilderAPI_Transform(self._surfaces[i], transformation).Shape()
+        #move mesh:
+        self.mesh = move_mesh(self.mesh, np.array([-xmin - self.L*x_offset, 0, -zmin]))
+
+
+
+
+
+
+
 
     def visualise_surface(self):
         display, start_display, add_menu, add_function_to_menu = init_display()

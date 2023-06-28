@@ -4,7 +4,7 @@ from typing import List
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import QApplication, QMenu, QWidget
 from PySide6.QtWidgets import QMenuBar
-
+from hullformdir.shipstability import ShipStability
 
 try:
     # d3v imports
@@ -26,6 +26,7 @@ try:
     import hullmoddir.optocchullform as opthf
     # pygem
     from hullmoddir.pygemmenus import CreateFFDBox_menu, DeformFFDBox_menu
+    from michell_dir.michell import michell_resitance
 
 except BaseException as error:
     print('An exception occurred: {}'.format(error))
@@ -98,7 +99,31 @@ class HullmodCommand(Command):
         menu_FFDDeform = self.menuOCCForm.addAction("&FDD Deform")
         menu_FFDDeform.triggered.connect(self.onFDDDeform)
 
+        menu_CalcResist = self.menuOCCForm.addAction("&Calc Wave Resistance")
+        menu_CalcResist.triggered.connect(self.on_calc_resistance)
 
+        menu_CalcStab = self.menuOCCForm.addAction("&Calc Stab")
+        menu_CalcStab.triggered.connect(self.on_calc_stab)
+
+    def on_calc_stab(self):         #zrcalo i stvara novi mesh????
+        points = self.hfcom.active_hull_form.mesh.points()
+        # self.hfcom.active_hull_form.visualise_surface()
+        z = points[:, 2]
+        # print(min(z), max(z),self.hfcom.active_hull_form.T)
+        print(self.hfcom.active_hull_form.L, self.hfcom.active_hull_form.H, self.hfcom.active_hull_form.T)
+        sscalc = ShipStability(self.hfcom.active_hull_form, (self.hfcom.active_hull_form.H-10))
+        sscalc.wl.set_plane_point_z(self.hfcom.active_hull_form.T)
+        displacement, displacementCG, new_fvs, new_pts = sscalc.calculate_displacement_and_displacementCG()
+        displacement = displacement
+        print('displacement, m3', displacement)
+        print('displacement, t', displacement)
+        print('displacement CG', displacementCG)
+
+    def on_calc_resistance(self):
+        calc = michell_resitance(self.hfcom.active_hull_form, 10)
+        print(calc.wave_resistance())
+        print(calc.n_calls)
+        # calc.test_intersection()
 
     def onCreateFDDBox(self):
         if isinstance(self.hfcom.active_hull_form, OCCHullform):

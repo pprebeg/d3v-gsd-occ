@@ -107,5 +107,6 @@ class form_OptimizationProblem(OptimizationProblem):
 
         self.add_objective(DesignObjective('resistance', CallbackGetConnector(am.get_resistance)))
 
-        self.add_constraint(DesignConstraint('volume', CallbackGetConnector(am.get_volume), 25.0, ConstrType.LT))
+        self.add_constraint(DesignConstraint('volume_up', CallbackGetConnector(am.get_volume), 25.0, ConstrType.LT))
+        self.add_constraint(DesignConstraint('volume_down', CallbackGetConnector(am.get_volume), 10.0, ConstrType.GT))
         self.add_analysis_executor(am)
